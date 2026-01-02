@@ -10,9 +10,18 @@ router.get('/', authenticateToken, async (req, res) => {
     let query = 'SELECT * FROM employees';
     const params = [];
 
+    // Si se solicita un status específico, filtrar por él
+    // Si el status está NULL o vacío, tratarlo como 'Activo' por defecto
     if (status) {
-      query += ' WHERE status = ?';
-      params.push(status);
+      if (status === 'Activo') {
+        // Para 'Activo', incluir también los que no tienen status definido
+        query += ' WHERE (status = ? OR status IS NULL OR status = "")';
+        params.push(status);
+      } else {
+        // Para otros status, solo los que coinciden exactamente
+        query += ' WHERE status = ?';
+        params.push(status);
+      }
     }
 
     query += ' ORDER BY full_name ASC';
