@@ -61,28 +61,43 @@ router.get('/', authenticateToken, async (req, res) => {
 // POST /api/employees
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const {
-      employee_id,
-      full_name,
-      service,
-      hire_date,
-      last_renewal_date,
-      second_uniform_date,
-      next_renewal_date,
-      vest_size,
-      shirt_size,
-      pants_size,
-      shoe_size
-    } = req.body;
+    // Aceptar tanto camelCase como snake_case
+    const employee_id = req.body.employee_id || req.body.employeeId || null;
+    const full_name = req.body.full_name || req.body.fullName || null;
+    const service = req.body.service || null;
+    const hire_date = req.body.hire_date || req.body.hireDate || null;
+    const last_renewal_date = req.body.last_renewal_date || req.body.lastRenewalDate || null;
+    const second_uniform_date = req.body.second_uniform_date || req.body.secondUniformDate || null;
+    const next_renewal_date = req.body.next_renewal_date || req.body.nextRenewalDate || null;
+    const vest_size = req.body.vest_size || req.body.vestSize || null;
+    const shirt_size = req.body.shirt_size || req.body.shirtSize || null;
+    const pants_size = req.body.pants_size || req.body.pantsSize || null;
+    const shoe_size = req.body.shoe_size || req.body.shoeSize || null;
 
+    // Validar campos requeridos
+    if (!employee_id || !full_name || !service || !hire_date) {
+      return res.status(400).json({ 
+        error: 'Campos requeridos: employee_id/employeeId, full_name/fullName, service, hire_date/hireDate' 
+      });
+    }
+
+    // Convertir undefined a null explícitamente
     const [result] = await pool.execute(
       `INSERT INTO employees (employee_id, full_name, service, hire_date, last_renewal_date, 
        second_uniform_date, next_renewal_date, vest_size, shirt_size, pants_size, shoe_size)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        employee_id, full_name, service, hire_date,
-        last_renewal_date || null, second_uniform_date || null, next_renewal_date || null,
-        vest_size || null, shirt_size || null, pants_size || null, shoe_size || null
+        employee_id ?? null,
+        full_name ?? null,
+        service ?? null,
+        hire_date ?? null,
+        last_renewal_date ?? null,
+        second_uniform_date ?? null,
+        next_renewal_date ?? null,
+        vest_size ?? null,
+        shirt_size ?? null,
+        pants_size ?? null,
+        shoe_size ?? null
       ]
     );
 
@@ -93,7 +108,7 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(409).json({ error: 'El ID de empleado ya existe' });
     }
     console.error('Error creando empleado:', error);
-    res.status(500).json({ error: 'Error al crear empleado' });
+    res.status(500).json({ error: 'Error al crear empleado', details: error.message });
   }
 });
 
@@ -214,7 +229,16 @@ router.get('/services', authenticateToken, async (req, res) => {
 // POST /api/employees/pending
 router.post('/pending', authenticateToken, async (req, res) => {
   try {
-    const {
+    // Aceptar tanto camelCase como snake_case
+    const employee_id = req.body.employee_id || req.body.employeeId || null;
+    const full_name = req.body.full_name || req.body.fullName || null;
+    const service = req.body.service || null;
+    const hire_date = req.body.hire_date || req.body.hireDate || null;
+    const last_renewal_date = req.body.last_renewal_date || req.body.lastRenewalDate || null;
+    const second_uniform_date = req.body.second_uniform_date || req.body.secondUniformDate || null;
+    const next_renewal_date = req.body.next_renewal_date || req.body.nextRenewalDate || null;
+
+    console.log('📝 Creando empleado pendiente:', {
       employee_id,
       full_name,
       service,
@@ -222,23 +246,38 @@ router.post('/pending', authenticateToken, async (req, res) => {
       last_renewal_date,
       second_uniform_date,
       next_renewal_date
-    } = req.body;
+    });
 
+    // Validar campos requeridos
+    if (!full_name || !service || !hire_date) {
+      return res.status(400).json({ 
+        error: 'Campos requeridos: full_name/fullName, service, hire_date/hireDate' 
+      });
+    }
+
+    // Convertir undefined a null explícitamente para todos los campos
     const [result] = await pool.execute(
       `INSERT INTO pending_employees (employee_id, full_name, service, hire_date, 
        last_renewal_date, second_uniform_date, next_renewal_date)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
-        employee_id || null, full_name, service, hire_date,
-        last_renewal_date || null, second_uniform_date || null, next_renewal_date || null
+        employee_id ?? null,
+        full_name ?? null,
+        service ?? null,
+        hire_date ?? null,
+        last_renewal_date ?? null,
+        second_uniform_date ?? null,
+        next_renewal_date ?? null
       ]
     );
 
     const [pending] = await pool.execute('SELECT * FROM pending_employees WHERE id = ?', [result.insertId]);
+    console.log('✅ Empleado pendiente creado:', pending[0]);
     res.status(201).json(pending[0]);
   } catch (error) {
-    console.error('Error creando empleado pendiente:', error);
-    res.status(500).json({ error: 'Error al crear empleado pendiente' });
+    console.error('❌ Error creando empleado pendiente:', error);
+    console.error('📄 Body recibido:', req.body);
+    res.status(500).json({ error: 'Error al crear empleado pendiente', details: error.message });
   }
 });
 
