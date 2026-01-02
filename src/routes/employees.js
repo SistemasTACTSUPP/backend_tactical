@@ -17,30 +17,43 @@ router.get('/', authenticateToken, async (req, res) => {
 
     query += ' ORDER BY full_name ASC';
 
+    console.log('🔍 Consulta empleados:', { query, params, status });
     const [employees] = await pool.execute(query, params);
+    console.log(`✅ Empleados encontrados: ${employees.length}`);
     
     // Transformar snake_case a camelCase para Flutter
-    const transformedEmployees = employees.map(emp => ({
-      id: emp.employee_id || emp.id || '',
-      name: emp.full_name || emp.name || '',
-      service: emp.service || '',
-      puesto: emp.puesto || null,
-      status: emp.status || 'Activo',
-      hireDate: emp.hire_date || null,
-      lastRenewalDate: emp.last_renewal_date || null,
-      nextRenewalDate: emp.next_renewal_date || null,
-      secondUniformDate: emp.second_uniform_date || null,
-      updatedAt: emp.updated_at || emp.updatedAt || null,
-      vestSize: emp.vest_size || emp.vestSize || null,
-      shirtSize: emp.shirt_size || emp.shirtSize || null,
-      pantsSize: emp.pants_size || emp.pantsSize || null,
-      shoeSize: emp.shoe_size || emp.shoeSize || null,
-    }));
+    const transformedEmployees = employees.map(emp => {
+      const transformed = {
+        id: emp.employee_id || emp.id || '',
+        name: emp.full_name || emp.name || '',
+        service: emp.service || '',
+        puesto: emp.puesto || null,
+        status: emp.status || 'Activo',
+        hireDate: emp.hire_date || null,
+        lastRenewalDate: emp.last_renewal_date || null,
+        nextRenewalDate: emp.next_renewal_date || null,
+        secondUniformDate: emp.second_uniform_date || null,
+        updatedAt: emp.updated_at || emp.updatedAt || null,
+        vestSize: emp.vest_size || emp.vestSize || null,
+        shirtSize: emp.shirt_size || emp.shirtSize || null,
+        pantsSize: emp.pants_size || emp.pantsSize || null,
+        shoeSize: emp.shoe_size || emp.shoeSize || null,
+      };
+      
+      // Validar que tenga al menos id y name
+      if (!transformed.id || !transformed.name) {
+        console.warn('⚠️ Empleado con datos incompletos:', emp);
+      }
+      
+      return transformed;
+    });
     
+    console.log(`📤 Enviando ${transformedEmployees.length} empleados transformados`);
     res.json(transformedEmployees);
   } catch (error) {
-    console.error('Error obteniendo empleados:', error);
-    res.status(500).json({ error: 'Error al obtener empleados' });
+    console.error('❌ Error obteniendo empleados:', error);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ error: 'Error al obtener empleados', details: error.message });
   }
 });
 
