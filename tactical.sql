@@ -1,0 +1,1 @@
+DESCRIBE inventory_items;
