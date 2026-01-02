@@ -7,12 +7,13 @@ const { authenticateToken } = require('../middleware/auth');
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const { status } = req.query;
+    
+    // Construir query base - siempre obtener todos los empleados
     let query = 'SELECT * FROM employees';
     const params = [];
 
-    // Si se solicita un status específico, filtrar por él
-    // Si el status está NULL o vacío, tratarlo como 'Activo' por defecto
-    if (status) {
+    // Si se solicita un status específico, filtrar
+    if (status && status !== 'Todos') {
       if (status === 'Activo') {
         // Para 'Activo', incluir también los que no tienen status definido
         query += ' WHERE (status = ? OR status IS NULL OR status = "")';
@@ -28,49 +29,69 @@ router.get('/', authenticateToken, async (req, res) => {
 
     console.log('🔍 Consulta empleados:', { query, params, status });
     const [employees] = await pool.execute(query, params);
-    console.log(`✅ Empleados encontrados: ${employees.length}`);
+    console.log(`✅ Empleados encontrados en BD: ${employees.length}`);
+    
+    if (!employees || employees.length === 0) {
+      console.log('⚠️ No se encontraron empleados en la base de datos');
+      return res.json([]);
+    }
     
     // Transformar snake_case a camelCase para Flutter
     const transformedEmployees = employees.map(emp => {
-      // Normalizar status: trim, capitalizar primera letra
-      let normalizedStatus = (emp.status || 'Activo').toString().trim();
-      if (normalizedStatus && normalizedStatus.length > 0) {
-        normalizedStatus = normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1).toLowerCase();
-        // Asegurar que sea 'Activo' o 'Inactivo'
-        if (normalizedStatus.toLowerCase() !== 'inactivo') {
-          normalizedStatus = 'Activo';
+      try {
+        // Normalizar status
+        let normalizedStatus = 'Activo';
+        if (emp.status) {
+          const statusStr = emp.status.toString().trim();
+          if (statusStr.toLowerCase() === 'inactivo') {
+            normalizedStatus = 'Inactivo';
+          } else {
+            normalizedStatus = 'Activo';
+          }
         }
-      } else {
-        normalizedStatus = 'Activo';
+        
+        const transformed = {
+          id: String(emp.employee_id || emp.id || ''),
+          name: String(emp.full_name || emp.name || ''),
+          service: String(emp.service || ''),
+          puesto: emp.puesto ? String(emp.puesto) : null,
+          status: normalizedStatus,
+          hireDate: emp.hire_date || null,
+          lastRenewalDate: emp.last_renewal_date || null,
+          nextRenewalDate: emp.next_renewal_date || null,
+          secondUniformDate: emp.second_uniform_date || null,
+          createdAt: emp.created_at || null,
+          updatedAt: emp.updated_at || null,
+          vestSize: emp.vest_size || null,
+          shirtSize: emp.shirt_size || null,
+          pantsSize: emp.pants_size || null,
+          shoeSize: emp.shoe_size || null,
+        };
+        
+        // Validar datos esenciales
+        if (!transformed.id || transformed.id === '' || !transformed.name || transformed.name === '') {
+          console.warn('⚠️ Empleado con datos incompletos (id o name vacío):', {
+            id: transformed.id,
+            name: transformed.name,
+            employee_id: emp.employee_id,
+            full_name: emp.full_name
+          });
+          return null; // Filtrar empleados sin datos esenciales
+        }
+        
+        return transformed;
+      } catch (transformError) {
+        console.error('❌ Error transformando empleado:', transformError, emp);
+        return null;
       }
-      
-      const transformed = {
-        id: emp.employee_id || emp.id || '',
-        name: emp.full_name || emp.name || '',
-        service: emp.service || '',
-        puesto: emp.puesto || null,
-        status: normalizedStatus,
-        hireDate: emp.hire_date || null,
-        lastRenewalDate: emp.last_renewal_date || null,
-        nextRenewalDate: emp.next_renewal_date || null,
-        secondUniformDate: emp.second_uniform_date || null,
-        createdAt: emp.created_at || emp.createdAt || null,
-        updatedAt: emp.updated_at || emp.updatedAt || null,
-        vestSize: emp.vest_size || emp.vestSize || null,
-        shirtSize: emp.shirt_size || emp.shirtSize || null,
-        pantsSize: emp.pants_size || emp.pantsSize || null,
-        shoeSize: emp.shoe_size || emp.shoeSize || null,
-      };
-      
-      // Validar que tenga al menos id y name
-      if (!transformed.id || !transformed.name) {
-        console.warn('⚠️ Empleado con datos incompletos:', emp);
-      }
-      
-      return transformed;
-    });
+    }).filter(emp => emp !== null); // Filtrar nulos
     
-    console.log(`📤 Enviando ${transformedEmployees.length} empleados transformados`);
+    console.log(`📤 Enviando ${transformedEmployees.length} empleados transformados (de ${employees.length} originales)`);
+    
+    if (transformedEmployees.length === 0) {
+      console.warn('⚠️ Después de transformar, no quedaron empleados válidos');
+    }
+    
     res.json(transformedEmployees);
   } catch (error) {
     console.error('❌ Error obteniendo empleados:', error);
