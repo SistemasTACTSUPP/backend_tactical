@@ -32,12 +32,24 @@ router.get('/', authenticateToken, async (req, res) => {
     
     // Transformar snake_case a camelCase para Flutter
     const transformedEmployees = employees.map(emp => {
+      // Normalizar status: trim, capitalizar primera letra
+      let normalizedStatus = (emp.status || 'Activo').toString().trim();
+      if (normalizedStatus && normalizedStatus.length > 0) {
+        normalizedStatus = normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1).toLowerCase();
+        // Asegurar que sea 'Activo' o 'Inactivo'
+        if (normalizedStatus.toLowerCase() !== 'inactivo') {
+          normalizedStatus = 'Activo';
+        }
+      } else {
+        normalizedStatus = 'Activo';
+      }
+      
       const transformed = {
         id: emp.employee_id || emp.id || '',
         name: emp.full_name || emp.name || '',
         service: emp.service || '',
         puesto: emp.puesto || null,
-        status: emp.status || 'Activo',
+        status: normalizedStatus,
         hireDate: emp.hire_date || null,
         lastRenewalDate: emp.last_renewal_date || null,
         nextRenewalDate: emp.next_renewal_date || null,
