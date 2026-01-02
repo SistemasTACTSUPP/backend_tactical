@@ -8,7 +8,7 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     const { status } = req.query;
     
-    // Construir query base - siempre obtener todos los empleados
+    // Construir query - igual que inventory, simple y directo
     let query = 'SELECT * FROM employees';
     const params = [];
 
@@ -29,74 +29,32 @@ router.get('/', authenticateToken, async (req, res) => {
 
     console.log('🔍 Consulta empleados:', { query, params, status });
     const [employees] = await pool.execute(query, params);
-    console.log(`✅ Empleados encontrados en BD: ${employees.length}`);
+    console.log(`✅ Empleados encontrados: ${employees.length}`);
     
-    if (!employees || employees.length === 0) {
-      console.log('⚠️ No se encontraron empleados en la base de datos');
-      return res.json([]);
-    }
+    // Transformar a camelCase (como lo espera Flutter)
+    const transformed = employees.map(emp => ({
+      id: emp.employee_id || emp.id || '',
+      name: emp.full_name || emp.name || '',
+      service: emp.service || '',
+      puesto: emp.puesto || null,
+      status: emp.status || 'Activo',
+      hireDate: emp.hire_date || null,
+      lastRenewalDate: emp.last_renewal_date || null,
+      nextRenewalDate: emp.next_renewal_date || null,
+      secondUniformDate: emp.second_uniform_date || null,
+      createdAt: emp.created_at || null,
+      updatedAt: emp.updated_at || null,
+      vestSize: emp.vest_size || null,
+      shirtSize: emp.shirt_size || null,
+      pantsSize: emp.pants_size || null,
+      shoeSize: emp.shoe_size || null,
+    }));
     
-    // Transformar snake_case a camelCase para Flutter
-    const transformedEmployees = employees.map(emp => {
-      try {
-        // Normalizar status
-        let normalizedStatus = 'Activo';
-        if (emp.status) {
-          const statusStr = emp.status.toString().trim();
-          if (statusStr.toLowerCase() === 'inactivo') {
-            normalizedStatus = 'Inactivo';
-          } else {
-            normalizedStatus = 'Activo';
-          }
-        }
-        
-        const transformed = {
-          id: String(emp.employee_id || emp.id || ''),
-          name: String(emp.full_name || emp.name || ''),
-          service: String(emp.service || ''),
-          puesto: emp.puesto ? String(emp.puesto) : null,
-          status: normalizedStatus,
-          hireDate: emp.hire_date || null,
-          lastRenewalDate: emp.last_renewal_date || null,
-          nextRenewalDate: emp.next_renewal_date || null,
-          secondUniformDate: emp.second_uniform_date || null,
-          createdAt: emp.created_at || null,
-          updatedAt: emp.updated_at || null,
-          vestSize: emp.vest_size || null,
-          shirtSize: emp.shirt_size || null,
-          pantsSize: emp.pants_size || null,
-          shoeSize: emp.shoe_size || null,
-        };
-        
-        // Validar datos esenciales
-        if (!transformed.id || transformed.id === '' || !transformed.name || transformed.name === '') {
-          console.warn('⚠️ Empleado con datos incompletos (id o name vacío):', {
-            id: transformed.id,
-            name: transformed.name,
-            employee_id: emp.employee_id,
-            full_name: emp.full_name
-          });
-          return null; // Filtrar empleados sin datos esenciales
-        }
-        
-        return transformed;
-      } catch (transformError) {
-        console.error('❌ Error transformando empleado:', transformError, emp);
-        return null;
-      }
-    }).filter(emp => emp !== null); // Filtrar nulos
-    
-    console.log(`📤 Enviando ${transformedEmployees.length} empleados transformados (de ${employees.length} originales)`);
-    
-    if (transformedEmployees.length === 0) {
-      console.warn('⚠️ Después de transformar, no quedaron empleados válidos');
-    }
-    
-    res.json(transformedEmployees);
+    console.log(`📤 Enviando ${transformed.length} empleados`);
+    res.json(transformed);
   } catch (error) {
     console.error('❌ Error obteniendo empleados:', error);
-    console.error('Stack:', error.stack);
-    res.status(500).json({ error: 'Error al obtener empleados', details: error.message });
+    res.status(500).json({ error: 'Error al obtener empleados' });
   }
 });
 
