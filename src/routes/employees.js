@@ -54,6 +54,7 @@ router.get('/', authenticateToken, async (req, res) => {
         lastRenewalDate: emp.last_renewal_date || null,
         nextRenewalDate: emp.next_renewal_date || null,
         secondUniformDate: emp.second_uniform_date || null,
+        createdAt: emp.created_at || emp.createdAt || null,
         updatedAt: emp.updated_at || emp.updatedAt || null,
         vestSize: emp.vest_size || emp.vestSize || null,
         shirtSize: emp.shirt_size || emp.shirtSize || null,
